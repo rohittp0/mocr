@@ -8,7 +8,7 @@ size = (379 // 2, 165 // 2)
 
 
 def draw_text(text: List[str], font: FreeTypeFont, draw: ImageDraw):
-    x, y = 10, 10
+    x, y = 5, 0
 
     for line in text:
         draw.text((x, y), line, font=font, fill='black')
@@ -16,9 +16,9 @@ def draw_text(text: List[str], font: FreeTypeFont, draw: ImageDraw):
 
 
 def get_text() -> Generator[List[str], None, None]:
-    names = open('names.txt', 'r', encoding='utf-8')
-    husbands = open('husbands.txt', 'r', encoding='utf-8')
-    house = open('house.txt', 'r', encoding='utf-8')
+    names = open('texts/names.txt', 'r', encoding='utf-8')
+    husbands = open('texts/husbands.txt', 'r', encoding='utf-8')
+    house = open('texts/house.txt', 'r', encoding='utf-8')
 
     husband_labels = [
         'അച്ഛൻ്റെ',
@@ -35,7 +35,7 @@ def get_text() -> Generator[List[str], None, None]:
         h_label = random.choice(husband_labels)
         g_value = random.choice(gender_values)
 
-        name, husband, house = name.strip().split("\n"), husband.strip().split("\n"), house.strip().split("\n")
+        name, husband, house = name.strip().split("~"), husband.strip().split("~"), house.strip().split("~")
 
         yield [
             f'പേര് : {name[0]}',
@@ -49,16 +49,19 @@ def get_text() -> Generator[List[str], None, None]:
 
 
 def main():
-    bg = Image.new('gray', size, 255)
-    font = ImageFont.truetype('path/to/malayalam-font.ttf', size=40)
+    bg = Image.new('1', size, 255)
+    font = ImageFont.truetype('font.ttf', size=11)
 
     texts = []
 
     for i, text in enumerate(get_text()):
+        bg = Image.new('RGB', size, (255, 255, 255))  # Create a new image and set its background to white
         draw = ImageDraw.Draw(bg)
+
         draw_text(text, font, draw)
 
         texts.append("~".join(text))
+        bg = bg.resize((size[0]*2, size[1]*2), Image.ANTIALIAS)
         bg.save(f'output/{i}.png')
 
     with open('output.txt', 'w', encoding='utf-8') as f:
