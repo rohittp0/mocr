@@ -1,17 +1,17 @@
+import csv
+import re
 from pathlib import Path
 
 import cv2
 import numpy as np
-import easyocr
 import pytesseract
-
-from utils import show
 
 DATA_DIR = 'data'
 OUTPUT_DIR = 'output'
 
-en_reader = easyocr.Reader(['en'])
 sharpen_filter = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
+
+Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
 
 def crop_cells(image_path):
@@ -23,10 +23,10 @@ def crop_cells(image_path):
     _, thresh = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
     # Find the contours
-    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Initialize a list to store the cell images
-    cells = []
+    coords = []
 
     # Iterate over the contours
     for contour in contours:
@@ -37,82 +37,146 @@ def crop_cells(image_path):
         # Get the rectangle that contains the contour
         x, y, w, h = cv2.boundingRect(contour)
 
-        cell = thresh[y + 3:y + h - 2, x + 3:x + w - 2]
+        cell = image[y + 3:y + h - 2, x + 3:x + w - 2]
+        coords.append((x, y, cell))
 
-        cons, _ = cv2.findContours(cell, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    coords.sort(key=lambda c: (c[1] // 10, c[0]))
+    d_min = 30
 
-        for con in cons:
-            x_i, y_i, w_i, h_i = cv2.boundingRect(con)
+    for i, cord in enumerate(coords):
+        skip = False
+        for j in range(i + 1, len(coords)):
+            if abs(cord[0] - coords[j][0]) < d_min and abs(cord[1] - coords[j][1]) < d_min:
+                skip = True
+                break
+            if abs(cord[0] - coords[j][0]) > d_min:
+                break
 
-            if w_i / h_i > 1 or cv2.contourArea(con) < 1000:
-                continue
-
-            cell = image[y + 1:y + h, x + 1:x + w][:, :x_i - 5]
-            break
-
-        cells.append(cell)
-
-    return cells
+        if not skip:
+            yield cord[2]
 
 
 def process_cell(cell):
     # Apply thresholding to create a binary image
     _, thresh = cv2.threshold(cell, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-    # Find the contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    for contour in contours:
-        # Check if the contour has required area
-        if cv2.contourArea(contour) < 5000:
+    voter_id = ""
+
+    for con in contours:
+        x_i, y_i, w_i, h_i = cv2.boundingRect(con)
+
+        if w_i / h_i > 1 or cv2.contourArea(con) < 1000:
             continue
 
-        # Get the rectangle that contains the contour
-        x, y, w, h = cv2.boundingRect(contour)
+        voter_id_cell = cell[:, x_i:]
+        voter_id = pytesseract.image_to_string(voter_id_cell, lang='eng').split("\n")[0]
 
-        sl_no = cell[y:y + h, x:x + w]
+        cell = cell[:, :x_i - 5]
+        break
+
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        # Check if the contour has required area
+        if cv2.contourArea(contour) < 5000 or w / h < 3:
+            continue
+
         cell = cell[y + h + 2:, :]
 
-        # Create a sharpening kernel
-        kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
-
-        # Apply the sharpening kernel to the image
-        sl_no = cv2.filter2D(sl_no, -1, kernel)
-
-        sl_no_text = "".join(en_reader.readtext(sl_no, detail=0))
-
-        return cell, sl_no_text.strip()
+        return cell, voter_id
 
     return cell, ''
 
 
 def get_cell_main(cell: np.ndarray):
-    cell = cv2.resize(cell, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC)
-    cell = cv2.filter2D(cell, -1, sharpen_filter)
-    cell = cv2.copyMakeBorder(cell, 10, 10, 10, 10, cv2.BORDER_CONSTANT)
     text = pytesseract.image_to_string(cell, lang='mal')
+    text = text.replace("\u200c", "").replace("\u200d", "")
 
-    show(cell)
-    print(text)
+    labels = ["പേര", "വീട്ടു", "നമ്പര്", "പ്രായം", "ലിംഗം", ":", "സ്തീ", "പുരുഷന്‍"]
 
-    return text
+    previous = ""
+    fields = []
+
+    for line in text.split("\n"):
+        if any([label in line for label in labels]):
+            if previous:
+                fields.append(previous)
+            previous = line
+        else:
+            previous += " " + line
+
+    fields.append(previous)
+
+    if len(fields) < 4:
+        print("Missing fields: ", fields)
+        return
+
+    name_regex = r".*പേ[രര്‍]്?\s*:?\s*"
+    house_regex = r".*വീട്ടു\s?(നമ്പര്‍|നമ്പര)്?\s*:?\s*"
+    age_regex = r".*പ്രായം\s*:?\s*"
+    relation_map = {
+        r"ഭ[രര്‍]്?ത്താ?വ്?": "ഭർത്താവ്",
+        r"അച.*(ൻ|ന)": "അച്ഛൻ",
+        r"അമ": "അമ്മ",
+    }
+
+    name = re.sub(name_regex, "", fields[0])
+    husband = re.sub(name_regex, "", fields[1])
+    house = re.sub(house_regex, "", fields[2])
+    age = re.sub(age_regex, "", fields[3]).split("ല")[0]
+    gender = "സ്ത്രീ" if "സ്തീ" in fields[3] else "പുരുഷൻ"
+
+    relation = fields[1].split(":")[0]
+    for k, v in relation_map.items():
+        if re.match(k, fields[1]):
+            relation = v
+            break
+
+    ret = [
+        name.strip(),
+        relation.strip(),
+        husband.strip(),
+        house.strip(),
+        age.strip(),
+        gender
+    ]
+
+    return ret
+
+
+def clean(sl_no, voter_id, name, relation, husband, house, age, gender):
+    voter_id = re.sub(r'\W+', '', voter_id)
+
+    age_match = re.search(r'\d{2}|\d\s+\d', age)
+    age = age_match.group() if age_match else ''
+
+    return [sl_no, voter_id, name, relation, husband, house, age, gender]
 
 
 def main():
-    Path(OUTPUT_DIR).mkdir(exist_ok=True)
+    rows = []
+    sl_no = 0
 
     for path in Path(DATA_DIR).glob('*.png'):
-        cells = crop_cells(str(path))
+        for cell in crop_cells(str(path)):
+            sl_no += 1
+            cell, voter_id = process_cell(cell)
 
-        for i, cell in enumerate(cells):
-            cell, sl_no = process_cell(cell)
-            try:
-                sl_no = int(sl_no)
-            except ValueError:
+            details = get_cell_main(cell)
+
+            if not details:
                 continue
 
-            cv2.imwrite(f'{OUTPUT_DIR}/{sl_no}.png', cell)
-            # text = get_cell_main(cell)
+            details.insert(0, str(sl_no))
+            details.insert(1, voter_id)
+
+            details = clean(*details)
+            rows.append(details)
+
+    # Write to CSV
+    with open(f'{OUTPUT_DIR}/output.csv', 'w', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
 
 
 if __name__ == '__main__':

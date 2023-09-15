@@ -2,3 +2,5 @@ venv/
 data/
 output/
 .idea/
+output.txt
+no_*/
