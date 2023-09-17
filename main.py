@@ -1,4 +1,5 @@
 import csv
+import pickle
 import re
 from pathlib import Path
 
@@ -10,8 +11,6 @@ DATA_DIR = 'data'
 OUTPUT_DIR = 'output'
 
 sharpen_filter = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
-
-Path(OUTPUT_DIR).mkdir(exist_ok=True)
 
 
 def crop_cells(image_path):
@@ -144,16 +143,23 @@ def get_cell_main(cell: np.ndarray):
     return ret
 
 
-def clean(sl_no, voter_id, name, relation, husband, house, age, gender):
+def clean(details, prefix_lookup):
+    sl_no, voter_id, name, relation, husband, house, age, gender = details
+
     voter_id = re.sub(r'\W+', '', voter_id)
+    voter_id = prefix_lookup[voter_id[:3].lower()] + voter_id[3:].upper().replace("O", "0")
+    voter_id = voter_id[:3] + voter_id[-7:]
 
     age_match = re.search(r'\d{2}|\d\s+\d', age)
-    age = age_match.group() if age_match else ''
+    age = age_match.group().replace(" ", "") if age_match else ''
 
     return [sl_no, voter_id, name, relation, husband, house, age, gender]
 
 
 def main():
+    Path(OUTPUT_DIR).mkdir(exist_ok=True)
+    prefix_lookup = pickle.load(open('prefix_lookup.pkl', 'rb'))
+
     rows = []
     sl_no = 0
 
@@ -170,7 +176,7 @@ def main():
             details.insert(0, str(sl_no))
             details.insert(1, voter_id)
 
-            details = clean(*details)
+            details = clean(details, prefix_lookup)
             rows.append(details)
 
     # Write to CSV
