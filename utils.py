@@ -1,7 +1,7 @@
 import cv2
 
 
-def show(*images, names):
+def show(*images, names=()):
     if not isinstance(names, list):
         names = [names]
 

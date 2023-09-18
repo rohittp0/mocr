@@ -5,11 +5,7 @@ import numpy as np
 import pytesseract
 
 
-def crop_cells(image_path):
-    # Load the image and convert it to grayscale
-    image = cv2.imread(image_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
+def crop_cells(image: np.ndarray):
     # Apply thresholding to create a binary image
     _, thresh = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
@@ -21,12 +17,10 @@ def crop_cells(image_path):
 
     # Iterate over the contours
     for contour in contours:
-        # Check if the contour has required area
-        if 120000 > cv2.contourArea(contour) < 90000:
-            continue
-
-        # Get the rectangle that contains the contour
         x, y, w, h = cv2.boundingRect(contour)
+
+        if w / h < 2 or w / h > 3 or cv2.contourArea(contour) < 1000:
+            continue
 
         cell = image[y + 3:y + h - 2, x + 3:x + w - 2]
         coords.append((x, y, cell))
