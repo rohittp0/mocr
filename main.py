@@ -34,8 +34,8 @@ def clean(details, prefix_lookup, replacements):
 
 def main():
     Path(OUTPUT_DIR).mkdir(exist_ok=True)
-    prefix_lookup = pickle.load(open('prefix_lookup.pkl', 'rb'))
-    replacements = [*csv.reader(open('replacements.csv', 'r', encoding='utf-8'))][1:]
+    prefix_lookup = pickle.load(open('res/prefix_lookup.pkl', 'rb'))
+    replacements = [*csv.reader(open('res/replacements.csv', 'r', encoding='utf-8'))][1:]
 
     rows = []
     empty = []

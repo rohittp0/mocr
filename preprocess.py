@@ -5,7 +5,7 @@ import Levenshtein
 
 
 def create_lookup_table():
-    with open('prefix.txt', 'r') as f:
+    with open('res/prefix.txt', 'r') as f:
         my_list = [line.strip().lower() for line in f.readlines()]
 
     lookup_table = {}
@@ -20,7 +20,7 @@ def create_lookup_table():
                 closest_distance = distance
         lookup_table[my_string] = closest_match
 
-    with open('prefix_lookup.pkl', 'wb') as f:
+    with open('res/prefix_lookup.pkl', 'wb') as f:
         pickle.dump(lookup_table, f)
 
 
