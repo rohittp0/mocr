@@ -2,6 +2,7 @@ import csv
 import pickle
 import re
 from pathlib import Path
+from typing import List, Tuple, Pattern, AnyStr
 
 from cell import crop_cells, process_cell, get_cell_main
 from cover import process_cover
@@ -11,7 +12,7 @@ DATA_DIR = 'data'
 OUTPUT_DIR = 'output'
 
 
-def clean(details, prefix_lookup, replacements):
+def clean(details, prefix_lookup, replacements: List[Tuple[Pattern[AnyStr], str]]):
     sl_no, voter_id, name, relation, husband, house, age, gender = details
 
     voter_id = re.sub(r'\W+', '', voter_id)
@@ -24,10 +25,10 @@ def clean(details, prefix_lookup, replacements):
 
     name, husband = re.sub(r'\d+', '', name), re.sub(r'\d+', '', husband)
 
-    for replacement in replacements:
-        name = re.sub(replacement[0], replacement[1], name)
-        husband = re.sub(replacement[0], replacement[1], husband)
-        house = re.sub(replacement[0], replacement[1], house)
+    for pattern, replacement in replacements:
+        name = pattern.sub(replacement, name)
+        husband = pattern.sub(replacement, husband)
+        house = pattern.sub(replacement, house)
 
     return [sl_no, voter_id, name, relation, husband, house, age, gender]
 
@@ -35,7 +36,13 @@ def clean(details, prefix_lookup, replacements):
 def main():
     Path(OUTPUT_DIR).mkdir(exist_ok=True)
     prefix_lookup = pickle.load(open('res/prefix_lookup.pkl', 'rb'))
-    replacements = [*csv.reader(open('res/replacements.csv', 'r', encoding='utf-8'))][1:]
+    replacements = []
+
+    with open('res/replacements.csv', 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        next(reader)
+        for row in reader:
+            replacements.append((re.compile(row[0]), row[1]))
 
     rows = []
     empty = []
