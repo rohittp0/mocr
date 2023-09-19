@@ -11,7 +11,7 @@ DATA_DIR = 'data'
 OUTPUT_DIR = 'output'
 
 
-def clean(details, prefix_lookup):
+def clean(details, prefix_lookup, replacements):
     sl_no, voter_id, name, relation, husband, house, age, gender = details
 
     voter_id = re.sub(r'\W+', '', voter_id)
@@ -22,12 +22,20 @@ def clean(details, prefix_lookup):
     age_match = re.search(r'\d{2}|\d\s+\d', age)
     age = age_match.group().replace(" ", "") if age_match else ''
 
+    name, husband = re.sub(r'\d+', '', name), re.sub(r'\d+', '', husband)
+
+    for replacement in replacements:
+        name = re.sub(replacement[0], replacement[1], name)
+        husband = re.sub(replacement[0], replacement[1], husband)
+        house = re.sub(replacement[0], replacement[1], house)
+
     return [sl_no, voter_id, name, relation, husband, house, age, gender]
 
 
 def main():
     Path(OUTPUT_DIR).mkdir(exist_ok=True)
     prefix_lookup = pickle.load(open('prefix_lookup.pkl', 'rb'))
+    replacements = [*csv.reader(open('replacements.csv', 'r', encoding='utf-8'))][1:]
 
     rows = []
     empty = []
@@ -52,7 +60,7 @@ def main():
                 details.insert(0, str(sl_no))
                 details.insert(1, voter_id)
 
-                details = clean(details, prefix_lookup)
+                details = clean(details, prefix_lookup, replacements)
                 rows.append(details + cover)
 
     # Write to CSV

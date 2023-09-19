@@ -41,33 +41,11 @@ def crop_cells(image: np.ndarray):
             yield cord[2]
 
 
-def process_cell(cell):
-    # Apply thresholding to create a binary image
-    _, thresh = cv2.threshold(cell, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-    voter_id = ""
-
-    for con in contours:
-        x_i, y_i, w_i, h_i = cv2.boundingRect(con)
-
-        if w_i / h_i > 1 or cv2.contourArea(con) < 1000:
-            continue
-
-        voter_id_cell = cell[:, x_i:]
-        voter_id = pytesseract.image_to_string(voter_id_cell, lang='eng').split("\n")[0]
-
-        cell = cell[:, :x_i - 5]
-        break
-
-    return cell[int(cell.shape[0]*0.18):, :], voter_id
-
-
 def get_cell_main(cell: np.ndarray):
     text = pytesseract.image_to_string(cell, lang='mal')
     text = text.replace("\u200c", "").replace("\u200d", "")
 
-    labels = ["പേര", "വീട്ടു", "നമ്പര്", "പ്രായം", "ലിംഗം", ":", "സ്തീ", "പുരുഷന്‍"]
+    labels = ["പേര", "വീട്ടു", "വീടു", "വീരു", "നമ്പര്", "പ്രായം", "ലിംഗം", ":", "സ്തീ", "പുരുഷന്‍"]
 
     previous = ""
     fields = []
@@ -88,7 +66,6 @@ def get_cell_main(cell: np.ndarray):
 
     name_regex = r".*പേ[രര്‍]്?\s*:?\s*"
     house_regex = r".*വീട്ടു\s?(നമ്പര്‍|നമ്പര)്?\s*:?\s*"
-    age_regex = r".*പ്രായം\s*:?\s*"
     relation_map = {
         r"ഭ[രര്‍]്?ത്താ?വ്?": "ഭർത്താവ്",
         r"അച.*(ൻ|ന)": "അച്ഛൻ",
@@ -98,8 +75,10 @@ def get_cell_main(cell: np.ndarray):
     name = re.sub(name_regex, "", fields[0])
     husband = re.sub(name_regex, "", fields[1])
     house = re.sub(house_regex, "", fields[2])
-    age = re.sub(age_regex, "", fields[3]).split("ല")[0]
-    gender = "സ്ത്രീ" if "സ്തീ" in fields[3] else "പുരുഷൻ"
+    gender = "സ്ത്രീ" if ("സ്തീ" in fields[3] or "സ്ത്രീ" in fields[3]) else "പുരുഷൻ"
+
+    age = cell[int(cell.shape[0] // 2.5):, int(cell.shape[1] // 4.5):int(cell.shape[1] // 3)]
+    age = pytesseract.image_to_string(age, lang='eng')
 
     relation = fields[1].split(":")[0]
     for k, v in relation_map.items():
@@ -117,3 +96,25 @@ def get_cell_main(cell: np.ndarray):
     ]
 
     return ret
+
+
+def process_cell(cell):
+    # Apply thresholding to create a binary image
+    _, thresh = cv2.threshold(cell, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    voter_id = ""
+
+    for con in contours:
+        x_i, y_i, w_i, h_i = cv2.boundingRect(con)
+
+        if w_i / h_i > 1 or cv2.contourArea(con) < 1000:
+            continue
+
+        voter_id_cell = cell[:, x_i:]
+        voter_id = pytesseract.image_to_string(voter_id_cell, lang='eng').split("\n")[0]
+
+        cell = cell[:, :x_i - 5]
+        break
+
+    return cell[int(cell.shape[0] * 0.18):, :], voter_id
