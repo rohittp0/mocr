@@ -42,7 +42,7 @@ def main():
         reader = csv.reader(f)
         next(reader)
         for row in reader:
-            replacements.append((re.compile(row[0]), row[1]))
+            replacements.append((re.compile(row[0]), row[1].replace("/s", " ")))
 
     rows = []
     empty = []
