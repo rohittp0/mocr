@@ -60,17 +60,7 @@ def process_cell(cell):
         cell = cell[:, :x_i - 5]
         break
 
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        # Check if the contour has required area
-        if cv2.contourArea(contour) < 5000 or w / h < 3:
-            continue
-
-        cell = cell[y + h + 2:, :]
-
-        return cell, voter_id
-
-    return cell, ''
+    return cell[int(cell.shape[0]*0.18):, :], voter_id
 
 
 def get_cell_main(cell: np.ndarray):

@@ -13,7 +13,7 @@ def get_rois(cover: np.ndarray) -> List[np.ndarray]:
     iw, ih = cover.shape[::-1]
     max_area = iw * ih / 10
 
-    rois = [None, None, None]
+    rois = [None, None]
 
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
@@ -21,13 +21,12 @@ def get_rois(cover: np.ndarray) -> List[np.ndarray]:
 
         ratio = w / h
 
-        if (500 > area or area > max_area or 3 > ratio or
+        if (500 > area or area > max_area or 3 > ratio or x > iw / 20 or
                 ratio > 27 or ih * 0.07 < y < ih * 0.4 or y > ih * 0.5):
             continue
 
         conditions = [
             y < ih * 0.10 and x < iw / 20 and 8 < ratio < 26,
-            x > iw * 0.75 and y < ih * 0.10 and 5 < ratio < 8,
             x < iw / 20 and y > ih / 2.2 and 3 < ratio < 5
         ]
 
@@ -39,9 +38,8 @@ def get_rois(cover: np.ndarray) -> List[np.ndarray]:
     return rois
 
 
-def process_lac(lac: np.ndarray) -> Tuple[str, str]:
-    lac[:, :int(lac.shape[1] / 1.75)] = 255
-    txt = pytesseract.image_to_string(lac, lang='mal').split("\n")[0]
+def name_and_no(roi: np.ndarray) -> Tuple[str, str]:
+    txt = pytesseract.image_to_string(roi, lang='mal').split("\n")[0]
     txt = re.sub(r'[:-]', ' ', txt).replace("\u200c", "").replace("\u200d", "")
 
     no_match = re.search(r'\d{1,3}|\d\s*\d?\s*\d?', txt)
@@ -52,21 +50,16 @@ def process_lac(lac: np.ndarray) -> Tuple[str, str]:
     return no, name.strip()
 
 
-def process_booth_no(booth):
-    booth[:, :int(booth.shape[1] / 1.50)] = 255
-    txt = pytesseract.image_to_string(booth, lang='eng').split("\n")[0]
-
-    return re.sub(r'\D', '', txt).strip()
+def process_lac(lac: np.ndarray) -> Tuple[str, str]:
+    lac[:, :int(lac.shape[1] / 1.75)] = 255
+    return name_and_no(lac)
 
 
-def process_booth_name(booth):
+def process_booth(booth):
     y1, y2 = int(booth.shape[0] / 4), int(booth.shape[0] / 2)
-    booth = booth[y1:y2, int(booth.shape[1] / 10):]
+    booth = booth[y1:y2, :]
 
-    txt = pytesseract.image_to_string(booth, lang='mal').split("\n")[0]
-    txt = re.sub(r'[:-]', '', txt).replace("\u200c", "").replace("\u200d", "")
-
-    return re.sub(r'\d', '', txt).strip()
+    return name_and_no(booth)
 
 
 def process_cover(cover: np.ndarray) -> Tuple[str, str, str, str]:
@@ -79,9 +72,6 @@ def process_cover(cover: np.ndarray) -> Tuple[str, str, str, str]:
         ret[0], ret[1] = process_lac(rois[0])
 
     if rois[1] is not None:
-        ret[2] = process_booth_no(rois[1])
-
-    if rois[2] is not None:
-        ret[3] = process_booth_name(rois[2])
+        ret[2], ret[3] = process_booth(rois[1])
 
     return ret[0], ret[1], ret[2], ret[3]

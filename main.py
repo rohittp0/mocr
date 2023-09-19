@@ -30,11 +30,12 @@ def main():
     prefix_lookup = pickle.load(open('prefix_lookup.pkl', 'rb'))
 
     rows = []
+    empty = []
 
     for path in Path(DATA_DIR).glob('*.pdf'):
         pages = read_pdf(str(path))
         cover, _ = next(pages), next(pages)
-        cover = process_cover(cover)
+        cover = [*process_cover(cover)]
         sl_no = 0
 
         for page in pages:
@@ -45,22 +46,20 @@ def main():
                 details = get_cell_main(cell)
 
                 if not details:
+                    empty.append([sl_no])
                     continue
 
                 details.insert(0, str(sl_no))
                 details.insert(1, voter_id)
 
                 details = clean(details, prefix_lookup)
-                rows.append(details)
-
-                print(sl_no)
-
-        rows.append([''] * 8 + cover)
+                rows.append(details + cover)
 
     # Write to CSV
     with open(f'{OUTPUT_DIR}/output.csv', 'w', encoding='utf-8',  newline='') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
+        writer.writerows(empty)
 
 
 if __name__ == '__main__':
