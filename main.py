@@ -11,6 +11,9 @@ from pdf import read_pdf
 DATA_DIR = 'data'
 OUTPUT_DIR = 'output'
 
+HEADER = ["SL No", "Reg No", "Name", "Relation", "Father / Husband / Mother", "Address", "Age", "Gender", "LAC No",
+          "LAC name", "Booth No", "Booth Name"]
+
 
 def clean(details, prefix_lookup, replacements: List[Tuple[Pattern[AnyStr], str]]):
     sl_no, voter_id, name, relation, husband, house, age, gender = details
@@ -30,7 +33,7 @@ def clean(details, prefix_lookup, replacements: List[Tuple[Pattern[AnyStr], str]
         husband = pattern.sub(replacement, husband)
         house = pattern.sub(replacement, house)
 
-    return [sl_no, voter_id, name, relation, husband, house, age, gender]
+    return [sl_no, voter_id.upper(), name, relation, husband, house, age, gender]
 
 
 def main():
@@ -44,8 +47,8 @@ def main():
         for row in reader:
             replacements.append((re.compile(row[0]), row[1].replace("/s", " ")))
 
-    rows = []
-    empty = []
+    rows = [HEADER]
+    empty = [HEADER]
 
     for path in Path(DATA_DIR).glob('*.pdf'):
         pages = read_pdf(str(path))
@@ -61,7 +64,7 @@ def main():
                 details = get_cell_main(cell)
 
                 if not details:
-                    empty.append([sl_no])
+                    empty.append([sl_no, voter_id, ""*6, *cover])
                     continue
 
                 details.insert(0, str(sl_no))
@@ -71,9 +74,12 @@ def main():
                 rows.append(details + cover)
 
     # Write to CSV
-    with open(f'{OUTPUT_DIR}/output.csv', 'w', encoding='utf-8',  newline='') as f:
+    with open(f'{OUTPUT_DIR}/output.csv', 'w', encoding='utf-8', newline='') as f:
         writer = csv.writer(f)
         writer.writerows(rows)
+
+    with open(f'{OUTPUT_DIR}/empty.csv', 'w', encoding='utf-8', newline='') as f:
+        writer = csv.writer(f)
         writer.writerows(empty)
 
 
