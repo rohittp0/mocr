@@ -61,8 +61,7 @@ def get_cell_main(cell: np.ndarray):
     fields.append(previous)
 
     if len(fields) < 4:
-        print("Missing fields: ", fields)
-        return
+        return []
 
     name_regex = r".*പേ[രര്‍]്?\s*:?\s*"
     house_regex = r".*വീട്ടു\s?(നമ്പര്‍|നമ്പര)്?\s*:?\s*"

@@ -15,7 +15,21 @@ HEADER = ["SL No", "Reg No", "Name", "Relation", "Father / Husband / Mother", "A
           "LAC name", "Booth No", "Booth Name"]
 
 
+def replace(*texts, replacements: List[Tuple[Pattern[AnyStr], str]]):
+    ret = []
+
+    for text in texts:
+        for pattern, replacement in replacements:
+            text = re.sub(pattern, replacement, text)
+        ret.append(text)
+
+    return ret
+
+
 def clean(details, prefix_lookup, replacements: List[Tuple[Pattern[AnyStr], str]]):
+    if len(details) != 8:
+        return details
+
     sl_no, voter_id, name, relation, husband, house, age, gender = details
 
     voter_id = re.sub(r'\W+', '', voter_id)
@@ -27,11 +41,7 @@ def clean(details, prefix_lookup, replacements: List[Tuple[Pattern[AnyStr], str]
     age = age_match.group().replace(" ", "") if age_match else ''
 
     name, husband = re.sub(r'\d+', '', name), re.sub(r'\d+', '', husband)
-
-    for pattern, replacement in replacements:
-        name = pattern.sub(replacement, name)
-        husband = pattern.sub(replacement, husband)
-        house = pattern.sub(replacement, house)
+    name, husband, house = replace(name, husband, house, replacements=replacements)
 
     return [sl_no, voter_id.upper(), name, relation, husband, house, age, gender]
 
@@ -53,7 +63,7 @@ def main():
     for path in Path(DATA_DIR).glob('*.pdf'):
         pages = read_pdf(str(path))
         cover, _ = next(pages), next(pages)
-        cover = [*process_cover(cover)]
+        cover = replace(*process_cover(cover), replacements=replacements)
         sl_no = 0
 
         for page in pages:
@@ -64,14 +74,16 @@ def main():
                 details = get_cell_main(cell)
 
                 if not details:
-                    empty.append([sl_no, voter_id, ""*6, *cover])
-                    continue
+                    empty.append([sl_no, voter_id, " " * 6, *cover])
 
                 details.insert(0, str(sl_no))
                 details.insert(1, voter_id)
 
                 details = clean(details, prefix_lookup, replacements)
                 rows.append(details + cover)
+
+            print(f'SL No: {sl_no}', end="\r")
+        print(f'Processed {path}')
 
     # Write to CSV
     with open(f'{OUTPUT_DIR}/output.csv', 'w', encoding='utf-8', newline='') as f:
