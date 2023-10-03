@@ -4,9 +4,12 @@ import re
 from pathlib import Path
 from typing import List, Tuple, Pattern, AnyStr
 
+import Levenshtein
+
 from cell import crop_cells, process_cell, get_cell_main
 from cover import process_cover
 from pdf import read_pdf
+from res.lacs import LAC
 
 DATA_DIR = 'data'
 OUTPUT_DIR = 'output'
@@ -28,7 +31,7 @@ def replace(*texts, replacements: List[Tuple[Pattern[AnyStr], str]]):
 
 def clean(details, prefix_lookup, replacements: List[Tuple[Pattern[AnyStr], str]]):
     if len(details) != 8:
-        return details
+        return details + [""] * (8 - len(details))
 
     sl_no, voter_id, name, relation, husband, house, age, gender = details
 
@@ -44,6 +47,20 @@ def clean(details, prefix_lookup, replacements: List[Tuple[Pattern[AnyStr], str]
     name, husband, house = replace(name, husband, house, replacements=replacements)
 
     return [sl_no, voter_id.upper(), name, relation, husband, house, age, gender]
+
+
+def match_lac(name):
+    closest_match = -1
+    closest_distance = int(1e9)
+
+    for i in range(len(LAC)):
+        distance = Levenshtein.distance(name, LAC[i])
+
+        if distance < closest_distance:
+            closest_match = i
+            closest_distance = distance
+
+    return LAC[closest_match], str(closest_match + 1)
 
 
 def main():
@@ -64,6 +81,7 @@ def main():
         pages = read_pdf(str(path))
         cover, _ = next(pages), next(pages)
         cover = replace(*process_cover(cover), replacements=replacements)
+        cover[0], cover[1] = match_lac(cover[1])
         sl_no = 0
 
         for page in pages:
@@ -74,7 +92,7 @@ def main():
                 details = get_cell_main(cell)
 
                 if not details:
-                    empty.append([sl_no, voter_id, " " * 6, *cover])
+                    empty.append([sl_no, voter_id, *([""] * 6), *cover])
 
                 details.insert(0, str(sl_no))
                 details.insert(1, voter_id)
@@ -82,8 +100,8 @@ def main():
                 details = clean(details, prefix_lookup, replacements)
                 rows.append(details + cover)
 
-            print(f'SL No: {sl_no}', end="\r")
-        print(f'Processed {path}')
+                print(f'\rSL No: {sl_no}', end="")
+        print(f'\nProcessed {path}')
 
     # Write to CSV
     with open(f'{OUTPUT_DIR}/output.csv', 'w', encoding='utf-8', newline='') as f:
