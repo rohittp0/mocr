@@ -5,6 +5,8 @@ import cv2
 import numpy as np
 import pytesseract
 
+from utils import show
+
 
 def get_rois(cover: np.ndarray) -> List[np.ndarray]:
     _, thresh = cv2.threshold(cover, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -14,6 +16,7 @@ def get_rois(cover: np.ndarray) -> List[np.ndarray]:
     max_area = iw * ih / 10
 
     rois = [None, None]
+    y_min = 1000000
 
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
@@ -21,19 +24,17 @@ def get_rois(cover: np.ndarray) -> List[np.ndarray]:
 
         ratio = w / h
 
-        if (500 > area or area > max_area or 3 > ratio or x > iw / 20 or
-                ratio > 27 or ih * 0.07 < y < ih * 0.4 or y > ih * 0.5):
+        if 500 > area or area > max_area:
             continue
 
-        conditions = [
-            y < ih * 0.10 and x < iw / 20 and 8 < ratio < 26,
-            x < iw / 20 and y > ih / 2.2 and 3 < ratio < 5
-        ]
-
-        if not any(conditions):
+        if 3 > ratio or x > iw * 0.05 or ratio > 27 or ih * 0.07 < y < ih * 0.4 or y > ih * 0.6:
             continue
 
-        rois[conditions.index(True)] = cover[y:y + h, x:x + w]
+        if 8 < ratio < 26 and y < y_min:
+            y_min = y
+            rois[0] = cover[y:y + h, x:x + w]
+        elif y > ih / 2.2 and 3 < ratio < 5:
+            rois[1] = cover[y:y + h, x:x + w]
 
     return rois
 
@@ -63,7 +64,6 @@ def process_booth(booth):
 
 
 def process_cover(cover: np.ndarray) -> Tuple[str, str, str, str]:
-    cover = cover[100:, :]
     rois = get_rois(cover)
 
     ret = ["", "", "", ""]

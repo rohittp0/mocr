@@ -77,7 +77,7 @@ def main():
     rows = [HEADER]
     empty = [HEADER]
 
-    for path in Path(DATA_DIR).glob('*.pdf'):
+    for path in Path(DATA_DIR).glob('**/*.pdf'):
         pages = read_pdf(str(path))
         cover, _ = next(pages), next(pages)
         cover = replace(*process_cover(cover), replacements=replacements)

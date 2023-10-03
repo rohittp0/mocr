@@ -10,7 +10,7 @@ def crop_cells(image: np.ndarray):
     _, thresh = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
     # Find the contours
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
     # Initialize a list to store the cell images
     coords = []
@@ -100,7 +100,7 @@ def get_cell_main(cell: np.ndarray):
 def process_cell(cell):
     # Apply thresholding to create a binary image
     _, thresh = cv2.threshold(cell, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
     voter_id = ""
 
@@ -113,7 +113,7 @@ def process_cell(cell):
         voter_id_cell = cell[:, x_i:]
         voter_id = pytesseract.image_to_string(voter_id_cell, lang='eng').split("\n")[0]
 
-        cell = cell[:, :x_i - 5]
+        cell = cell[int(y_i // 2):, :x_i - 5]
         break
 
-    return cell[int(cell.shape[0] * 0.18):, :], voter_id
+    return cell, voter_id
