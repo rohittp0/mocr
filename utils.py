@@ -6,7 +6,7 @@ def show(*images, names=()):
         names = [names]
 
     for i, image in enumerate(images):
-        name = str(names[i]) if i < len(names) else str(i)+' image '+str(image.shape)
+        name = str(names[i]) if i < len(names) else str(i) + ' image ' + str(image.shape)
         cv2.imshow(name, image)
 
     cv2.waitKey(0)

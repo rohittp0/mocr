@@ -42,7 +42,7 @@ def crop_cells(image: np.ndarray):
 
 
 def get_cell_main(cell: np.ndarray):
-    text = pytesseract.image_to_string(cell, lang='mal')
+    text = pytesseract.image_to_string(cell, lang='mal', config="--oem 1 --psm 6")
     text = text.replace("\u200c", "").replace("\u200d", "")
 
     labels = ["പേര", "വീട്ടു", "വീടു", "വീരു", "നമ്പര്", "പ്രായം", "ലിംഗം", ":", "സ്തീ", "പുരുഷന്‍"]
@@ -64,7 +64,7 @@ def get_cell_main(cell: np.ndarray):
         return []
 
     name_regex = r".*പേ[രര്‍]്?\s*:?\s*"
-    house_regex = r".*വീട്ടു\s?(നമ്പര്‍|നമ്പര)്?\s*:?\s*"
+    house_regex = r".*വ(ീ|ി)ട്ടു\s?(നമ്പര്‍|നമ്പര)്?\s*:?\s*"
     relation_map = {
         r"ഭ[രര്‍]്?ത്താ?വ്?": "ഭർത്താവ്",
         r"അച.*(ൻ|ന)": "അച്ഛൻ",
@@ -74,7 +74,7 @@ def get_cell_main(cell: np.ndarray):
     name = re.sub(name_regex, "", fields[0])
     husband = re.sub(name_regex, "", fields[1])
     house = re.sub(house_regex, "", fields[2])
-    gender = "സ്ത്രീ" if ("സ്തീ" in fields[3] or "സ്ത്രീ" in fields[3]) else "പുരുഷൻ"
+    gender = "സ്ത്രീ" if re.match(r"(സ്ത)|(സ്ത്ര)", fields[3]) else "പുരുഷൻ"
 
     age = cell[int(cell.shape[0] // 2.5):, int(cell.shape[1] // 4.5):int(cell.shape[1] // 3)]
     age = pytesseract.image_to_string(age, lang='eng')
@@ -111,7 +111,7 @@ def process_cell(cell):
             continue
 
         voter_id_cell = cell[:, x_i:]
-        voter_id = pytesseract.image_to_string(voter_id_cell, lang='eng').split("\n")[0]
+        voter_id = pytesseract.image_to_string(voter_id_cell, lang='eng', config=r"--oem 1 --psm 6").split("\n")[0]
 
         cell = cell[int(y_i // 2):, :x_i - 5]
         break
