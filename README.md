@@ -2,9 +2,11 @@
 
 ## Setup
 
-> Warning: This project was developed using Python 3.11. It is recommended to use the same version.
+> [!WARNING] 
+> This project was developed using Python 3.11. It is recommended to use the same version.
 
-> Note: The setup described below is for Windows. If you are using another OS, you will have to install the dependencies manually.
+> [!NOTE]  
+> The setup described below is for Windows. If you are using another OS, you will have to install the dependencies manually.
 
 ### Install ORC Engine
 
