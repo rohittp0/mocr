@@ -42,8 +42,11 @@ def crop_cells(image: np.ndarray):
 
 
 def get_cell_main(cell: np.ndarray):
-    text = pytesseract.image_to_string(cell, lang='mal', config="--oem 1 --psm 6")
-    text = text.replace("\u200c", "").replace("\u200d", "")
+    text: str = pytesseract.image_to_string(cell, lang='mal', config="--oem 1 --psm 12")
+    text = ("പേ" + text.replace("\u200c", "")
+            .replace("\u200d", "")
+            .split("പേ", maxsplit=1)[-1]
+            .replace("*", ""))
 
     labels = ["പേര", "വീട്ടു", "വീടു", "വീരു", "നമ്പര്", "പ്രായം", "ലിംഗം", ":", "സ്തീ", "പുരുഷന്‍"]
 
